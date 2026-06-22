@@ -1,37 +1,61 @@
- python evaluate.py --checkpoint logs/view_adapter_boq_dinov2_vitb14/version_x/checkpoints/last.ckpt --dataset_name nuscenes --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1  --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --infer_batch_size 8
+ python evaluate.py --checkpoint logs/view_adapter_boq_dinov2_vitb14/version_3/checkpoints/last.ckpt --dataset_name nuscenes --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1  --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --infer_batch_size 8
 Traceback (most recent call last):
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 625, in __str__
-    return self._str
-AttributeError: 'PosixPath' object has no attribute '_str'
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 89, in _load_dino_model
+    dinov2_backbones = importlib.import_module("dinov2.hub.backbones")
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 992, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 992, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1004, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'dinov2'
 
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 1011, in <module>
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 935, in <module>
     main()
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 903, in main
-    hparams, hparams_path = _load_hparams(args)
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 197, in _load_hparams
-    _apply_cli_overrides(hparams, args)
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
-    _apply_cli_overrides(hparams, args)
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
-    _apply_cli_overrides(hparams, args)
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
-    _apply_cli_overrides(hparams, args)
-  [Previous line repeated 983 more times]
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 130, in _apply_cli_overrides
-    hparams = HyperParams()
-  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 293, in __init__
-    project_root = Path(__file__).resolve().parent
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 1077, in resolve
-    s = self._accessor.realpath(self, strict=strict)
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/posixpath.py", line 392, in realpath
-    filename = os.fspath(filename)
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 632, in __fspath__
-    return str(self)
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 627, in __str__
-    self._str = self._format_parsed_parts(self._drv, self._root,
-  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 611, in _format_parsed_parts
-    return drv + root + cls._flavour.join(parts[1:])
-RecursionError: maximum recursion depth exceeded while calling a Python object
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 834, in main
+    model, query_img_size, db_img_size = _build_model(hparams)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 215, in _build_model
+    backbone, train_img_size, _ = build_backbone(hparams)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 475, in build_backbone
+    backbone, train_img_size, val_img_size, resolved_backbone_name = build_backbone_from_name(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 445, in build_backbone_from_name
+    backbone = DinoV2(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 62, in __init__
+    self.dino = self._load_dino_model(self.backbone_name, pretrained=pretrained)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 93, in _load_dino_model
+    return torch.hub.load(
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/hub.py", line 638, in load
+    repo_or_dir = _get_cache_or_reload(
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/hub.py", line 229, in _get_cache_or_reload
+    repo_owner, repo_name, ref = _parse_repo_info(github)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/hub.py", line 161, in _parse_repo_info
+    with urlopen(f"https://github.com/{repo_owner}/{repo_name}/tree/main/"):
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 216, in urlopen
+    return opener.open(url, data, timeout)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 519, in open
+    response = self._open(req, data)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 536, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 496, in _call_chain
+    result = func(*args)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 1391, in https_open
+    return self.do_open(http.client.HTTPSConnection, req,
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/urllib/request.py", line 1352, in do_open
+    r = h.getresponse()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/http/client.py", line 1395, in getresponse
+    response.begin()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/http/client.py", line 323, in begin
+    version, status, reason = self._read_status()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/http/client.py", line 292, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
