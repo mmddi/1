@@ -62,29 +62,31 @@ def _apply_mapping(hparams: HyperParams, values: dict):
 
 def _apply_cli_overrides(hparams: HyperParams, args: argparse.Namespace):
     overrides = [
-        ("kitti360_path", "kitti360_path"),
+        # ============================================================
+        # basic / model
+        # ============================================================
         ("aggregator", "aggregator_type"),
+        ("device", "device"),
+        ("infer_batch_size", "kitti360_infer_batch_size"),
+        ("num_workers", "num_workers"),
+
+        # ============================================================
+        # dataset switch
+        # ============================================================
+        ("dataset_name", "dataset_name"),
+
+        # ============================================================
+        # KITTI360
+        # ============================================================
+        ("kitti360_path", "kitti360_path"),
         ("kitti360_camnames", "kitti360_camnames"),
         ("kitti360_maptype", "kitti360_maptype"),
         ("kitti360_db_crop", "kitti360_db_crop_size"),
         ("kitti360_val_pos_th", "kitti360_val_positive_dist_threshold"),
-        ("backbone", "backbone_name"),
-        ("query_backbone", "query_backbone"),
-        ("db_backbone", "db_backbone"),
-        ("adapter_out_channels", "adapter_out_channels"),
-        ("adapter_type", "adapter_type"),
-        ("adapter_bottleneck_dim", "adapter_bottleneck_dim"),
-        ("adapter_scale", "adapter_scale"),
-        ("unfreeze_n", "unfreeze_n_blocks"),
-        ("dim", "output_dim"),
-        ("num_queries", "num_queries"),
-        ("num_layers", "num_layers"),
-        ("channel_proj", "channel_proj"),
-        ("db_encode_chunk_size", "db_encode_chunk_size"),
-        ("satellite_map_index", "satellite_map_index"),
-        ("num_workers", "num_workers"),
-        ("infer_batch_size", "kitti360_infer_batch_size"),
-        ("dataset_name", "dataset_name"),
+
+        # ============================================================
+        # nuScenes
+        # ============================================================
         ("nuscenes_path", "nuscenes_path"),
         ("nuscenes_train_version", "nuscenes_train_version"),
         ("nuscenes_val_version", "nuscenes_val_version"),
@@ -97,89 +99,33 @@ def _apply_cli_overrides(hparams: HyperParams, args: argparse.Namespace):
         ("nuscenes_db_crop", "nuscenes_db_crop_size"),
         ("nuscenes_val_pos_th", "nuscenes_val_positive_dist_threshold"),
     ]
+
     for src, dst in overrides:
-        value = getattr(args, src,None)
+        value = getattr(args, src, None)
         if value is not None:
             setattr(hparams, dst, value)
 
-    if args.adapter_layers is not None:
-        hparams.adapter_layers = list(args.adapter_layers)
-    if args.kitti360_q_size is not None:
-        hparams.kitti360_query_img_size = tuple(args.kitti360_q_size)
-    if args.kitti360_db_size is not None:
-        hparams.kitti360_db_img_size = tuple(args.kitti360_db_size)
+    # ============================================================
+    # image size overrides
+    # ============================================================
+    if getattr(args, "query_img_size", None) is not None:
+        hparams.query_img_size = tuple(args.query_img_size)
 
-    if args.dual_branch:
-        hparams.dual_branch = True
-        hparams.use_view_specific_adapter = False
-    if args.shared_query_boq:
-        hparams.shared_query_boq = True
-        hparams.dual_branch = True
-        hparams.use_view_specific_adapter = False
-    if args.view_specific_adapter:
-        hparams.use_view_specific_adapter = True
-        hparams.dual_branch = False
-        hparams.shared_query_boq = False
-    if args.dinov2_block_adapter:
-        hparams.use_dinov2_block_adapter = True
-    if args.no_normalize_descriptor:
-        hparams.normalize_descriptor = False
+    if getattr(args, "db_img_size", None) is not None:
+        hparams.db_img_size = tuple(args.db_img_size)
 
-
-# def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
-    hparams = HyperParams()
-    hparams.dataset_name = args.dataset_name
-
-    if args.dataset_name == "nuscenes":
-        hparams.use_kitti360_boq = False
-        hparams.use_nuscenes_boq = True
-
-        hparams.nuscenes_path = args.nuscenes_path
-        hparams.nuscenes_train_version = args.nuscenes_train_version
-        hparams.nuscenes_val_version = args.nuscenes_val_version
-        hparams.nuscenes_locations = args.nuscenes_locations
-        hparams.nuscenes_camnames = args.nuscenes_camnames
-        hparams.nuscenes_maptype = args.nuscenes_maptype
-        hparams.nuscenes_aerial_scale = args.nuscenes_aerial_scale
-        hparams.nuscenes_aerial_zoom = args.nuscenes_aerial_zoom
-        hparams.nuscenes_aerial_size = args.nuscenes_aerial_size
-        hparams.nuscenes_db_crop_size = args.nuscenes_db_crop
-        hparams.nuscenes_val_positive_dist_threshold = args.nuscenes_val_pos_th
-    else:
-        hparams.use_kitti360_boq = True
-        hparams.use_nuscenes_boq = False
-
-
-    checkpoint_path = Path(args.checkpoint)
-    hparams_path = Path(args.hparams) if args.hparams else _infer_hparams_path(checkpoint_path)
-    if hparams_path is not None and hparams_path.exists():
-        _apply_mapping(hparams, _load_yaml(hparams_path))
-
-    _apply_cli_overrides(hparams, args)
-
-    hparams.use_kitti360_boq = True
-    hparams.silent = True
-    hparams.compile = False
-    # Evaluation must use the last 15% of each KITTI360 video sequence, not the
-    # whole sequence. KITTI360BaseDataset(split="test") starts at train_ratio.
-    hparams.kitti360_train_ratio = 1.0 - float(args.test_tail_ratio)
-    hparams.kitti360_share_db = False
-    # build_backbone() uses `pretrained=not hparams.use_pretrained_boq`.
-    # Keep this True so evaluation only builds the architecture and then loads
-    # the supplied checkpoint, without fetching upstream DINO/ResNet weights.
-    hparams.use_pretrained_boq = True
-    # hparams.kitti360_path = '/mnt/sda/ZhengyiXu/datasets/cmvpr/kitti360/KITTI-360'
     if getattr(args, "nuscenes_q_size", None) is not None:
         hparams.nuscenes_query_img_size = tuple(args.nuscenes_q_size)
 
     if getattr(args, "nuscenes_db_size", None) is not None:
         hparams.nuscenes_db_img_size = tuple(args.nuscenes_db_size)
 
-    if not hparams.kitti360_path:
-        raise ValueError("Please pass --kitti360_path or provide a hparams.yaml containing kitti360_path.")
-    if not (0.0 < float(args.test_tail_ratio) < 1.0):
-        raise ValueError(f"--test_tail_ratio must be in (0, 1), got {args.test_tail_ratio}.")
-    return hparams, hparams_path
+    # ============================================================
+    # infer batch size 同步
+    # ============================================================
+    if getattr(args, "infer_batch_size", None) is not None:
+        hparams.kitti360_infer_batch_size = args.infer_batch_size
+        hparams.nuscenes_infer_batch_size = args.infer_batch_size
 
 def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
     hparams = HyperParams()
@@ -194,6 +140,7 @@ def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
     if hparams_path is not None and hparams_path.exists():
         _apply_mapping(hparams, _load_yaml(hparams_path))
 
+    # 这里只调用一次
     _apply_cli_overrides(hparams, args)
 
     dataset_name = str(
@@ -203,26 +150,15 @@ def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
     hparams.dataset_name = dataset_name
     hparams.silent = True
     hparams.compile = False
-
-    # Evaluation只加载本地checkpoint，不需要再下载官方权重
     hparams.use_pretrained_boq = True
 
     if dataset_name == "kitti360":
         hparams.use_kitti360_boq = True
         hparams.use_nuscenes_boq = False
 
-        if not (0.0 < float(args.test_tail_ratio) < 1.0):
-            raise ValueError(
-                f"--test_tail_ratio must be in (0, 1), got {args.test_tail_ratio}."
-            )
-
-        # KITTI360 test = 每个序列最后一段
-        hparams.kitti360_train_ratio = 1.0 - float(args.test_tail_ratio)
-        hparams.kitti360_share_db = False
-
         if not getattr(hparams, "kitti360_path", None):
             raise ValueError(
-                "Please pass --kitti360_path or provide hparams.yaml containing kitti360_path."
+                "Please pass --kitti360_path when dataset_name='kitti360'."
             )
 
     elif dataset_name == "nuscenes":
@@ -234,15 +170,6 @@ def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
                 "Please pass --nuscenes_path when dataset_name='nuscenes'."
             )
 
-        # 如果 train_version 和 val_version 相同，才用 train_ratio 切分；
-        # 如果 val_version 是 v1.0-test，则直接使用 test version。
-        hparams.nuscenes_train_ratio = getattr(
-            hparams,
-            "nuscenes_train_ratio",
-            1.0,
-        )
-        hparams.nuscenes_share_db = False
-
         if not hasattr(hparams, "nuscenes_infer_batch_size"):
             hparams.nuscenes_infer_batch_size = getattr(
                 hparams,
@@ -251,10 +178,7 @@ def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
             )
 
     else:
-        raise ValueError(
-            f"Unsupported dataset_name={dataset_name!r}. "
-            "Expected 'kitti360' or 'nuscenes'."
-        )
+        raise ValueError(f"Unsupported dataset_name={dataset_name}")
 
     return hparams, hparams_path
 
