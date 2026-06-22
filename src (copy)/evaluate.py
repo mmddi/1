@@ -373,32 +373,84 @@ def _extract_patch_descriptors(
 
     return descriptors, coordinates
 
-def _build_eval_loaders(args, test_ds):
-    from src.dataloaders.datasets_ws_kitti360 import (
-        kitti360_collate_fn_cache_db,
-        kitti360_collate_fn_cache_q,
-    )
+# def _build_eval_loaders(args, test_ds):
+#     from src.dataloaders.datasets_ws_kitti360 import (
+#         kitti360_collate_fn_cache_db,
+#         kitti360_collate_fn_cache_q,
+#     )
 
-    database_subset = Subset(test_ds, list(range(test_ds.database_num)))
-    query_subset = Subset(test_ds, list(range(test_ds.database_num, len(test_ds))))
+#     database_subset = Subset(test_ds, list(range(test_ds.database_num)))
+#     query_subset = Subset(test_ds, list(range(test_ds.database_num, len(test_ds))))
+
+#     common_loader_kwargs = dict(
+#         num_workers=getattr(args, "num_workers", 0),
+#         batch_size=getattr(args, "infer_batch_size", 32),
+#         shuffle=False,
+#         pin_memory=str(getattr(args, "device", "cpu")).startswith("cuda"),
+#     )
+
+#     database_loader = DataLoader(
+#         database_subset,
+#         collate_fn=kitti360_collate_fn_cache_db,
+#         **common_loader_kwargs,
+#     )
+#     query_loader = DataLoader(
+#         query_subset,
+#         collate_fn=kitti360_collate_fn_cache_q,
+#         **common_loader_kwargs,
+#     )
+#     return database_loader, query_loader
+
+def _build_eval_loaders(args, test_ds):
+    dataset_name = str(
+        getattr(
+            args,
+            "dataset_name",
+            getattr(test_ds, "dataset_name", "kitti360"),
+        )
+    ).lower()
+
+    if dataset_name == "nuscenes":
+        from src.dataloaders.datasets_ws_nuscenes import (
+            nuscenes_collate_fn_cache_db as collate_fn_cache_db,
+            nuscenes_collate_fn_cache_q as collate_fn_cache_q,
+        )
+    else:
+        from src.dataloaders.datasets_ws_kitti360 import (
+            kitti360_collate_fn_cache_db as collate_fn_cache_db,
+            kitti360_collate_fn_cache_q as collate_fn_cache_q,
+        )
+
+    database_subset = Subset(
+        test_ds,
+        list(range(test_ds.database_num)),
+    )
+    query_subset = Subset(
+        test_ds,
+        list(range(test_ds.database_num, len(test_ds))),
+    )
 
     common_loader_kwargs = dict(
         num_workers=getattr(args, "num_workers", 0),
         batch_size=getattr(args, "infer_batch_size", 32),
         shuffle=False,
-        pin_memory=str(getattr(args, "device", "cpu")).startswith("cuda"),
+        pin_memory=str(
+            getattr(args, "device", "cpu")
+        ).startswith("cuda"),
     )
 
     database_loader = DataLoader(
         database_subset,
-        collate_fn=kitti360_collate_fn_cache_db,
+        collate_fn=collate_fn_cache_db,
         **common_loader_kwargs,
     )
+
     query_loader = DataLoader(
         query_subset,
-        collate_fn=kitti360_collate_fn_cache_q,
+        collate_fn=collate_fn_cache_q,
         **common_loader_kwargs,
     )
+
     return database_loader, query_loader
 
 
@@ -862,4 +914,3 @@ def test(
     )
 
     return recalls, metrics["recall_str"], metrics
-
