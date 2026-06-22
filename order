@@ -1,0 +1,1 @@
+python train.py --use_kitti360_boq --view_specific_adapter --adapter_layers 8 9 10 11 --kitti360_path /mnt/sda/ZhengyiXu/datasets/cmvpr/kitti360/KITTI-360 --gpu_id 1 --bs 4 --db_encode_chunk_size 2  --kitti360_npos 2  --kitti360_nneg 2  --kitti360_infer_bs 4 --nw 4
