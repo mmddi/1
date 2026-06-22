@@ -1,0 +1,102 @@
+ python train.py
+Seed set to 2026
+Using cache found in /home/zhan/.cache/torch/hub/facebookresearch_dinov2_main
+/home/zhan/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/home/zhan/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/home/zhan/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/pretrained_boq.py:69: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(checkpoint_path, map_location=map_location)
+Using 16bit Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+`Trainer(limit_val_batches=1.0)` was configured so 100% of the batches will be used..
+You are using a CUDA device ('NVIDIA GeForce RTX 4090') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [2]
+Traceback (most recent call last):
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 1201, in <module>
+    train(hparams, dev_mode=args.dev)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 1018, in train
+    trainer.fit(model=model, datamodule=datamodule)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+    call._call_and_handle_interrupt(
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 49, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+    results = self._run_stage()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1123, in _run_stage
+    self.fit_loop.run()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 217, in run
+    self.advance()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 469, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 153, in run
+    self.advance(data_fetcher)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 352, in advance
+    batch_output = self.automatic_optimization.run(trainer.optimizers[0], batch_idx, kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 192, in run
+    self._optimizer_step(batch_idx, closure)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 270, in _optimizer_step
+    call._call_lightning_module_hook(
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 177, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 199, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/core/optimizer.py", line 154, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 239, in optimizer_step
+    return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/amp.py", line 79, in optimizer_step
+    closure_result = closure()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 146, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 131, in closure
+    step_output = self._step_fn()
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 319, in _training_step
+    training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 391, in training_step
+    return self.lightning_module.training_step(*args, **kwargs)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 394, in training_step
+    q_desc, p_desc, n_desc = self.forward_triplet_batch(output_dict)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 365, in forward_triplet_batch
+    n_desc = self._encode_db_in_chunks(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 275, in _encode_db_in_chunks
+    descriptors.append(self._encode_db(images[start_idx:end_idx]))
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 261, in _encode_db
+    return self._encode_view_specific_adapter_branch(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/kitti360_boq_triplet.py", line 245, in _encode_view_specific_adapter_branch
+    return self.image_encoder.encode_view(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/dino_boq_view_adapter.py", line 382, in encode_view
+    features = self._forward_backbone_with_adapters(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/models/dino_boq_view_adapter.py", line 368, in _forward_backbone_with_adapters
+    return self.backbone.forward_features(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 367, in forward_features
+    tokens = self._forward_tokens_with_block_adapters(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 313, in _forward_tokens_with_block_adapters
+    tokens = self._forward_block_with_parallel_adapter(
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 252, in _forward_block_with_parallel_adapter
+    tokens = tokens + ffn_residual_func(tokens)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/src/backbones.py", line 230, in ffn_residual_func
+    return block.ls2(block.mlp(block.norm2(x)))
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zhan/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/mlp.py", line 36, in forward
+    x = self.act(x)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/site-packages/torch/nn/modules/activation.py", line 734, in forward
+    return F.gelu(input, approximate=self.approximate)
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 26.00 MiB. GPU 0 has a total capacity of 23.53 GiB of which 16.81 MiB is free. Including non-PyTorch memory, this process has 23.46 GiB memory in use. Of the allocated memory 22.64 GiB is allocated by PyTorch, and 376.28 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
