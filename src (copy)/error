@@ -1,0 +1,37 @@
+ python evaluate.py --checkpoint logs/view_adapter_boq_dinov2_vitb14/version_x/checkpoints/last.ckpt --dataset_name nuscenes --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1  --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --infer_batch_size 8
+Traceback (most recent call last):
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 625, in __str__
+    return self._str
+AttributeError: 'PosixPath' object has no attribute '_str'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 1011, in <module>
+    main()
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 903, in main
+    hparams, hparams_path = _load_hparams(args)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 197, in _load_hparams
+    _apply_cli_overrides(hparams, args)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
+    _apply_cli_overrides(hparams, args)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
+    _apply_cli_overrides(hparams, args)
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 158, in _apply_cli_overrides
+    _apply_cli_overrides(hparams, args)
+  [Previous line repeated 983 more times]
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/evaluate.py", line 130, in _apply_cli_overrides
+    hparams = HyperParams()
+  File "/home/zhan/work/CvPR/cvpr/Bag-of-Queries-main/train.py", line 293, in __init__
+    project_root = Path(__file__).resolve().parent
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 1077, in resolve
+    s = self._accessor.realpath(self, strict=strict)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/posixpath.py", line 392, in realpath
+    filename = os.fspath(filename)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 632, in __fspath__
+    return str(self)
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 627, in __str__
+    self._str = self._format_parsed_parts(self._drv, self._root,
+  File "/home/zhan/third/anaconda3/envs/boq/lib/python3.10/pathlib.py", line 611, in _format_parsed_parts
+    return drv + root + cls._flavour.join(parts[1:])
+RecursionError: maximum recursion depth exceeded while calling a Python object
