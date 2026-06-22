@@ -428,6 +428,47 @@ class HyperParams:
         # 当前 KITTI360 分支不会执行 torch.compile，
         # 但 train.py 仍会读取该属性，因此保留。
         self.compile = False
+        self.dataset_name = "kitti360"
+        self.use_nuscenes_boq = False
+
+        self.nuscenes_path = "/mnt/sda/ZhengyiXu/datasets/radar/nuscenes"
+        self.nuscenes_train_version = "v1.0-trainval"
+        self.nuscenes_val_version = "v1.0-test"
+
+        self.nuscenes_locations = (
+            "boston-seaport,"
+            "singapore-hollandvillage,"
+            "singapore-onenorth,"
+            "singapore-queenstown"
+        )
+
+        self.nuscenes_camnames = "CAM_FRONT"
+        self.nuscenes_maptype = "satellite"
+
+        self.nuscenes_aerial_scale = 1
+        self.nuscenes_aerial_zoom = 20
+        self.nuscenes_aerial_size = 320
+
+        self.nuscenes_train_ratio = 1.0
+        self.nuscenes_share_db = False
+        self.nuscenes_traindownsample = 1
+
+        self.nuscenes_query_img_size = None
+        self.nuscenes_db_img_size = None
+        self.nuscenes_db_crop_size = 320
+        self.nuscenes_q_jitter = 0.0
+        self.nuscenes_db_jitter = 0.0
+
+        self.nuscenes_mining = "partial_sep"
+        self.nuscenes_neg_samples_num = 2000
+        self.nuscenes_pos_num_per_query = 4
+        self.nuscenes_negs_num_per_query = 6
+        self.nuscenes_cache_refresh_rate = 1280
+        self.nuscenes_infer_batch_size = 16
+
+        self.nuscenes_train_positives_dist_threshold = 10.0
+        self.nuscenes_val_positive_dist_threshold = 25.0
+        self.nuscenes_use_keyframes_only = True
 
 
    
@@ -795,31 +836,138 @@ def train(hparams, dev_mode=False):
         else:
             model = Kitti360BoQTripletModel(backbone, aggregator, **model_kwargs)
         pretrained_boq_report = _initialize_model_from_pretrained_boq(hparams, model)
-        datamodule = Kitti360TripletDataModule(
-            dataroot=hparams.kitti360_path,
-            batch_size=hparams.batch_size,
-            num_workers=hparams.num_workers,
-            features_dim=model.descriptor_dim,
-            query_img_size=query_img_size,
-            db_img_size=db_img_size,
-            db_crop_size=hparams.kitti360_db_crop_size,
-            q_jitter=hparams.kitti360_q_jitter,
-            db_jitter=hparams.kitti360_db_jitter,
-            train_ratio=hparams.kitti360_train_ratio,
-            share_db=hparams.kitti360_share_db,
-            traindownsample=hparams.kitti360_traindownsample,
-            camnames=hparams.kitti360_camnames,
-            maptype=hparams.kitti360_maptype,
-            mining=hparams.kitti360_mining,
-            neg_samples_num=hparams.kitti360_neg_samples_num,
-            pos_num_per_query=hparams.kitti360_pos_num_per_query,
-            negs_num_per_query=hparams.kitti360_negs_num_per_query,
-            cache_refresh_rate=hparams.kitti360_cache_refresh_rate,
-            infer_batch_size=hparams.kitti360_infer_batch_size,
-            train_positives_dist_threshold=hparams.kitti360_train_positives_dist_threshold,
-            val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
-            shuffle=True,
-        )
+        
+        
+        # datamodule = Kitti360TripletDataModule(
+        #     dataroot=hparams.kitti360_path,
+        #     batch_size=hparams.batch_size,
+        #     num_workers=hparams.num_workers,
+        #     features_dim=model.descriptor_dim,
+        #     query_img_size=query_img_size,
+        #     db_img_size=db_img_size,
+        #     db_crop_size=hparams.kitti360_db_crop_size,
+        #     q_jitter=hparams.kitti360_q_jitter,
+        #     db_jitter=hparams.kitti360_db_jitter,
+        #     train_ratio=hparams.kitti360_train_ratio,
+        #     share_db=hparams.kitti360_share_db,
+        #     traindownsample=hparams.kitti360_traindownsample,
+        #     camnames=hparams.kitti360_camnames,
+        #     maptype=hparams.kitti360_maptype,
+        #     mining=hparams.kitti360_mining,
+        #     neg_samples_num=hparams.kitti360_neg_samples_num,
+        #     pos_num_per_query=hparams.kitti360_pos_num_per_query,
+        #     negs_num_per_query=hparams.kitti360_negs_num_per_query,
+        #     cache_refresh_rate=hparams.kitti360_cache_refresh_rate,
+        #     infer_batch_size=hparams.kitti360_infer_batch_size,
+        #     train_positives_dist_threshold=hparams.kitti360_train_positives_dist_threshold,
+        #     val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
+        #     shuffle=True,
+        # )
+        # ============================================================
+        # Dataset / DataModule
+        # ============================================================
+        dataset_name = str(
+            getattr(hparams, "dataset_name", "kitti360")
+        ).lower()
+
+        if getattr(hparams, "use_nuscenes_boq", False):
+            dataset_name = "nuscenes"
+        elif getattr(hparams, "use_kitti360_boq", False):
+            dataset_name = "kitti360"
+
+        if dataset_name == "kitti360":
+            from src.dataloaders.kitti360_datamodule import Kitti360TripletDataModule
+
+            query_img_size = hparams.kitti360_query_img_size or train_img_size
+            db_img_size = hparams.kitti360_db_img_size or train_img_size
+
+            datamodule = Kitti360TripletDataModule(
+                dataroot=hparams.kitti360_path,
+                batch_size=hparams.batch_size,
+                num_workers=hparams.num_workers,
+                features_dim=model.descriptor_dim,
+                query_img_size=query_img_size,
+                db_img_size=db_img_size,
+                db_crop_size=hparams.kitti360_db_crop_size,
+                q_jitter=hparams.kitti360_q_jitter,
+                db_jitter=hparams.kitti360_db_jitter,
+                train_ratio=hparams.kitti360_train_ratio,
+                share_db=hparams.kitti360_share_db,
+                traindownsample=hparams.kitti360_traindownsample,
+                camnames=hparams.kitti360_camnames,
+                maptype=hparams.kitti360_maptype,
+                mining=hparams.kitti360_mining,
+                neg_samples_num=hparams.kitti360_neg_samples_num,
+                pos_num_per_query=hparams.kitti360_pos_num_per_query,
+                negs_num_per_query=hparams.kitti360_negs_num_per_query,
+                cache_refresh_rate=hparams.kitti360_cache_refresh_rate,
+                infer_batch_size=hparams.kitti360_infer_batch_size,
+                train_positives_dist_threshold=hparams.kitti360_train_positives_dist_threshold,
+                val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
+                shuffle=True,
+            )
+
+            logger_name = (
+                f"view_adapter_{hparams.aggregator_type}_"
+                f"{hparams.backbone_name}_kitti360"
+            )
+
+        elif dataset_name == "nuscenes":
+            from src.dataloaders.nuscenes_datamodule import NuScenesTripletDataModule
+
+            query_img_size = hparams.nuscenes_query_img_size or train_img_size
+            db_img_size = hparams.nuscenes_db_img_size or train_img_size
+
+            datamodule = NuScenesTripletDataModule(
+                dataroot=hparams.nuscenes_path,
+                batch_size=hparams.batch_size,
+                num_workers=hparams.num_workers,
+                features_dim=model.descriptor_dim,
+                query_img_size=query_img_size,
+                db_img_size=db_img_size,
+                db_crop_size=hparams.nuscenes_db_crop_size,
+                q_jitter=hparams.nuscenes_q_jitter,
+                db_jitter=hparams.nuscenes_db_jitter,
+                train_version=hparams.nuscenes_train_version,
+                val_version=hparams.nuscenes_val_version,
+                train_ratio=hparams.nuscenes_train_ratio,
+                share_db=hparams.nuscenes_share_db,
+                traindownsample=hparams.nuscenes_traindownsample,
+                camnames=hparams.nuscenes_camnames,
+                maptype=hparams.nuscenes_maptype,
+                locations=hparams.nuscenes_locations,
+                aerial_scale=hparams.nuscenes_aerial_scale,
+                aerial_zoom=hparams.nuscenes_aerial_zoom,
+                aerial_size=hparams.nuscenes_aerial_size,
+                use_keyframes_only=hparams.nuscenes_use_keyframes_only,
+                mining=hparams.nuscenes_mining,
+                neg_samples_num=hparams.nuscenes_neg_samples_num,
+                pos_num_per_query=hparams.nuscenes_pos_num_per_query,
+                negs_num_per_query=hparams.nuscenes_negs_num_per_query,
+                cache_refresh_rate=hparams.nuscenes_cache_refresh_rate,
+                infer_batch_size=hparams.nuscenes_infer_batch_size,
+                train_positives_dist_threshold=hparams.nuscenes_train_positives_dist_threshold,
+                val_positive_dist_threshold=hparams.nuscenes_val_positive_dist_threshold,
+                shuffle=True,
+            )
+
+            logger_name = (
+                f"view_adapter_{hparams.aggregator_type}_"
+                f"{hparams.backbone_name}_nuscenes"
+            )
+
+        else:
+            raise ValueError(
+                f"Unsupported dataset_name={dataset_name!r}. "
+                "Expected 'kitti360' or 'nuscenes'."
+            )
+
+        print("[DataModuleCheck]")
+        print("dataset_name =", dataset_name)
+        print("datamodule =", datamodule.__class__.__name__)
+        
+        
+        
         checkpointing = callbacks.ModelCheckpoint(
             monitor="val_recall1",
             filename="epoch[{epoch:02d}]_R1[{val_recall1:.2f}]_R5[{val_recall5:.2f}]",
@@ -996,12 +1144,15 @@ def train(hparams, dev_mode=False):
     callback_list = [checkpointing, EpochMetricsCallback()]
     if not hparams.silent and hasattr(callbacks, "RichProgressBar"):
         callback_list.append(callbacks.RichProgressBar())
-
+    logger = TensorBoardLogger(
+        save_dir="logs",
+        name=logger_name,
+    )
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
         strategy=strategy,
-        logger=tensorboard_logger,
+        logger=logger,
         precision=precision,
         callbacks=callback_list,
         max_epochs=hparams.max_epochs,
@@ -1092,6 +1243,47 @@ def parse_args():
     parser.add_argument("--freeze_sat_adapter", action="store_true")
     parser.add_argument("--print_train_items", type=int)
     parser.add_argument("--print_train_items_every_epoch", action="store_true")
+    parser.add_argument(
+        "--dataset_name",
+        type=str,
+        choices=["kitti360", "nuscenes"],
+        default=None,
+    )
+
+    parser.add_argument(
+        "--use_nuscenes_boq",
+        action="store_true",
+    )
+
+    parser.add_argument("--nuscenes_path", type=str)
+    parser.add_argument("--nuscenes_train_version", type=str)
+    parser.add_argument("--nuscenes_val_version", type=str)
+    parser.add_argument("--nuscenes_locations", type=str)
+    parser.add_argument("--nuscenes_camnames", type=str)
+    parser.add_argument("--nuscenes_maptype", type=str)
+    parser.add_argument("--nuscenes_aerial_scale", type=int)
+    parser.add_argument("--nuscenes_aerial_zoom", type=int)
+    parser.add_argument("--nuscenes_aerial_size", type=int)
+    parser.add_argument("--nuscenes_train_ratio", type=float)
+    parser.add_argument("--nuscenes_traindownsample", type=int)
+    parser.add_argument("--nuscenes_q_size", type=int, nargs=2, metavar=("H", "W"))
+    parser.add_argument("--nuscenes_db_size", type=int, nargs=2, metavar=("H", "W"))
+    parser.add_argument("--nuscenes_db_crop", type=int)
+    parser.add_argument("--nuscenes_q_jitter", type=float)
+    parser.add_argument("--nuscenes_db_jitter", type=float)
+    parser.add_argument("--nuscenes_mining", type=str)
+    parser.add_argument("--nuscenes_neg_samples", type=int)
+    parser.add_argument("--nuscenes_npos", type=int)
+    parser.add_argument("--nuscenes_nneg", type=int)
+    parser.add_argument("--nuscenes_cache_refresh", type=int)
+    parser.add_argument("--nuscenes_infer_bs", type=int)
+    parser.add_argument("--nuscenes_train_pos_th", type=float)
+    parser.add_argument("--nuscenes_val_pos_th", type=float)
+    parser.add_argument(
+        "--nuscenes_all_frames",
+        action="store_true",
+        help="Use all camera frames instead of keyframes only.",
+    )
     return parser.parse_args()
 
 
@@ -1144,6 +1336,29 @@ if __name__ == "__main__":
         ("ranking_tau", "ranking_tau"),
         ("slot_loss_weight", "slot_loss_weight"),
         ("print_train_items", "print_train_items"),
+        ("dataset_name", "dataset_name"),
+        ("nuscenes_path", "nuscenes_path"),
+        ("nuscenes_train_version", "nuscenes_train_version"),
+        ("nuscenes_val_version", "nuscenes_val_version"),
+        ("nuscenes_locations", "nuscenes_locations"),
+        ("nuscenes_camnames", "nuscenes_camnames"),
+        ("nuscenes_maptype", "nuscenes_maptype"),
+        ("nuscenes_aerial_scale", "nuscenes_aerial_scale"),
+        ("nuscenes_aerial_zoom", "nuscenes_aerial_zoom"),
+        ("nuscenes_aerial_size", "nuscenes_aerial_size"),
+        ("nuscenes_train_ratio", "nuscenes_train_ratio"),
+        ("nuscenes_traindownsample", "nuscenes_traindownsample"),
+        ("nuscenes_db_crop", "nuscenes_db_crop_size"),
+        ("nuscenes_q_jitter", "nuscenes_q_jitter"),
+        ("nuscenes_db_jitter", "nuscenes_db_jitter"),
+        ("nuscenes_mining", "nuscenes_mining"),
+        ("nuscenes_neg_samples", "nuscenes_neg_samples_num"),
+        ("nuscenes_npos", "nuscenes_pos_num_per_query"),
+        ("nuscenes_nneg", "nuscenes_negs_num_per_query"),
+        ("nuscenes_cache_refresh", "nuscenes_cache_refresh_rate"),
+        ("nuscenes_infer_bs", "nuscenes_infer_batch_size"),
+        ("nuscenes_train_pos_th", "nuscenes_train_positives_dist_threshold"),
+        ("nuscenes_val_pos_th", "nuscenes_val_positive_dist_threshold"),
     ]:
         value = getattr(args, src)
         if value is not None:
@@ -1197,5 +1412,27 @@ if __name__ == "__main__":
         hparams.train_sat_adapter = False
     if args.print_train_items_every_epoch:
         hparams.print_train_items_every_epoch = True
+    
+    if getattr(args, "nuscenes_q_size", None) is not None:
+        hparams.nuscenes_query_img_size = tuple(args.nuscenes_q_size)
+
+    if getattr(args, "nuscenes_db_size", None) is not None:
+        hparams.nuscenes_db_img_size = tuple(args.nuscenes_db_size)
+
+    if getattr(args, "nuscenes_all_frames", False):
+        hparams.nuscenes_use_keyframes_only = False
+
+    if getattr(args, "use_nuscenes_boq", False):
+        hparams.use_nuscenes_boq = True
+        hparams.use_kitti360_boq = False
+        hparams.dataset_name = "nuscenes"
+
+    if getattr(hparams, "dataset_name", None) == "nuscenes":
+        hparams.use_nuscenes_boq = True
+        hparams.use_kitti360_boq = False
 
     train(hparams, dev_mode=args.dev)
+
+
+
+# python train.py --dataset_name nuscenes --use_nuscenes_boq --aggregator boq --view_specific_adapter --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1 --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --gpu_id 0 --bs 2 --db_encode_chunk_size 2 --epochs 1 --print_model_modules
