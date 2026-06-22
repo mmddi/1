@@ -686,6 +686,7 @@ def main():
         print(f"{key}: {metrics[key]:.4f}")
 
 
+#  python evaluate.py --checkpoint logs/view_adapter_boq_dinov2_vitb14/version_x/checkpoints/last.ckpt --dataset_name nuscenes --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1  --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --infer_batch_size 8
 
 if __name__ == "__main__":
     main()
