@@ -15,6 +15,12 @@ from train import (
 from src.dataloaders.datasets_ws_kitti360 import (
     KITTI360BaseDataset,
     configure_kitti360_options,
+
+)
+
+from src.dataloaders.datasets_ws_nuscenes import (
+    NuScenesBaseDataset,
+    configure_nuscenes_options,
 )
 from src.evaluate import test as evaluate_kitti360
 from src.models.dino_boq_view_adapter import DinoBoQViewSpecificAdapterEncoder
@@ -78,9 +84,21 @@ def _apply_cli_overrides(hparams: HyperParams, args: argparse.Namespace):
         ("satellite_map_index", "satellite_map_index"),
         ("num_workers", "num_workers"),
         ("infer_batch_size", "kitti360_infer_batch_size"),
+        ("dataset_name", "dataset_name"),
+        ("nuscenes_path", "nuscenes_path"),
+        ("nuscenes_train_version", "nuscenes_train_version"),
+        ("nuscenes_val_version", "nuscenes_val_version"),
+        ("nuscenes_locations", "nuscenes_locations"),
+        ("nuscenes_camnames", "nuscenes_camnames"),
+        ("nuscenes_maptype", "nuscenes_maptype"),
+        ("nuscenes_aerial_scale", "nuscenes_aerial_scale"),
+        ("nuscenes_aerial_zoom", "nuscenes_aerial_zoom"),
+        ("nuscenes_aerial_size", "nuscenes_aerial_size"),
+        ("nuscenes_db_crop", "nuscenes_db_crop_size"),
+        ("nuscenes_val_pos_th", "nuscenes_val_positive_dist_threshold"),
     ]
     for src, dst in overrides:
-        value = getattr(args, src)
+        value = getattr(args, src,None)
         if value is not None:
             setattr(hparams, dst, value)
 
@@ -108,7 +126,7 @@ def _apply_cli_overrides(hparams: HyperParams, args: argparse.Namespace):
         hparams.normalize_descriptor = False
 
 
-def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
+# def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
     hparams = HyperParams()
     hparams.dataset_name = args.dataset_name
 
@@ -151,12 +169,93 @@ def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
     # the supplied checkpoint, without fetching upstream DINO/ResNet weights.
     hparams.use_pretrained_boq = True
     # hparams.kitti360_path = '/mnt/sda/ZhengyiXu/datasets/cmvpr/kitti360/KITTI-360'
+    if getattr(args, "nuscenes_q_size", None) is not None:
+        hparams.nuscenes_query_img_size = tuple(args.nuscenes_q_size)
 
+    if getattr(args, "nuscenes_db_size", None) is not None:
+        hparams.nuscenes_db_img_size = tuple(args.nuscenes_db_size)
 
     if not hparams.kitti360_path:
         raise ValueError("Please pass --kitti360_path or provide a hparams.yaml containing kitti360_path.")
     if not (0.0 < float(args.test_tail_ratio) < 1.0):
         raise ValueError(f"--test_tail_ratio must be in (0, 1), got {args.test_tail_ratio}.")
+    return hparams, hparams_path
+
+def _load_hparams(args: argparse.Namespace) -> tuple[HyperParams, Path | None]:
+    hparams = HyperParams()
+
+    checkpoint_path = Path(args.checkpoint)
+    hparams_path = (
+        Path(args.hparams)
+        if args.hparams
+        else _infer_hparams_path(checkpoint_path)
+    )
+
+    if hparams_path is not None and hparams_path.exists():
+        _apply_mapping(hparams, _load_yaml(hparams_path))
+
+    _apply_cli_overrides(hparams, args)
+
+    dataset_name = str(
+        getattr(hparams, "dataset_name", getattr(args, "dataset_name", "kitti360"))
+    ).lower()
+
+    hparams.dataset_name = dataset_name
+    hparams.silent = True
+    hparams.compile = False
+
+    # Evaluation只加载本地checkpoint，不需要再下载官方权重
+    hparams.use_pretrained_boq = True
+
+    if dataset_name == "kitti360":
+        hparams.use_kitti360_boq = True
+        hparams.use_nuscenes_boq = False
+
+        if not (0.0 < float(args.test_tail_ratio) < 1.0):
+            raise ValueError(
+                f"--test_tail_ratio must be in (0, 1), got {args.test_tail_ratio}."
+            )
+
+        # KITTI360 test = 每个序列最后一段
+        hparams.kitti360_train_ratio = 1.0 - float(args.test_tail_ratio)
+        hparams.kitti360_share_db = False
+
+        if not getattr(hparams, "kitti360_path", None):
+            raise ValueError(
+                "Please pass --kitti360_path or provide hparams.yaml containing kitti360_path."
+            )
+
+    elif dataset_name == "nuscenes":
+        hparams.use_kitti360_boq = False
+        hparams.use_nuscenes_boq = True
+
+        if not getattr(hparams, "nuscenes_path", None):
+            raise ValueError(
+                "Please pass --nuscenes_path when dataset_name='nuscenes'."
+            )
+
+        # 如果 train_version 和 val_version 相同，才用 train_ratio 切分；
+        # 如果 val_version 是 v1.0-test，则直接使用 test version。
+        hparams.nuscenes_train_ratio = getattr(
+            hparams,
+            "nuscenes_train_ratio",
+            1.0,
+        )
+        hparams.nuscenes_share_db = False
+
+        if not hasattr(hparams, "nuscenes_infer_batch_size"):
+            hparams.nuscenes_infer_batch_size = getattr(
+                hparams,
+                "kitti360_infer_batch_size",
+                32,
+            )
+
+    else:
+        raise ValueError(
+            f"Unsupported dataset_name={dataset_name!r}. "
+            "Expected 'kitti360' or 'nuscenes'."
+        )
+
     return hparams, hparams_path
 
 
@@ -283,30 +382,188 @@ def _load_checkpoint(model: torch.nn.Module, checkpoint_path: Path, allow_partia
     return incompatible
 
 
-def _build_test_dataset(hparams: HyperParams, query_img_size: tuple[int, int], db_img_size: tuple[int, int]):
-    configure_kitti360_options(
-        dataroot=hparams.kitti360_path,
-        train_ratio=hparams.kitti360_train_ratio,
-        share_db=False,
-        q_resize=query_img_size,
-        q_jitter=0.0,
-        db_cropsize=hparams.kitti360_db_crop_size,
-        db_resize=db_img_size,
-        db_jitter=0.0,
-        camnames=hparams.kitti360_camnames,
-        maptype=hparams.kitti360_maptype,
-        traindownsample=1,
-        num_workers=hparams.num_workers,
-        val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
+# def _build_test_dataset(hparams: HyperParams, query_img_size: tuple[int, int], db_img_size: tuple[int, int]):
+#     configure_kitti360_options(
+#         dataroot=hparams.kitti360_path,
+#         train_ratio=hparams.kitti360_train_ratio,
+#         share_db=False,
+#         q_resize=query_img_size,
+#         q_jitter=0.0,
+#         db_cropsize=hparams.kitti360_db_crop_size,
+#         db_resize=db_img_size,
+#         db_jitter=0.0,
+#         camnames=hparams.kitti360_camnames,
+#         maptype=hparams.kitti360_maptype,
+#         traindownsample=1,
+#         num_workers=hparams.num_workers,
+#         val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
+#     )
+#     dataset_args = SimpleNamespace(
+#         resize=query_img_size,
+#         test_method="single_query",
+#         num_workers=hparams.num_workers,
+#         infer_batch_size=hparams.kitti360_infer_batch_size,
+#         device="cpu",
+#     )
+#     return KITTI360BaseDataset(args=dataset_args, dataset_name="kitti360", split="test"), dataset_args
+
+
+def _build_test_dataset(
+    hparams: HyperParams,
+    query_img_size: tuple[int, int],
+    db_img_size: tuple[int, int],
+):
+    dataset_name = str(
+        getattr(hparams, "dataset_name", "kitti360")
+    ).lower()
+
+    if dataset_name == "kitti360":
+        configure_kitti360_options(
+            dataroot=hparams.kitti360_path,
+            train_ratio=hparams.kitti360_train_ratio,
+            share_db=False,
+            q_resize=query_img_size,
+            q_jitter=0.0,
+            db_cropsize=hparams.kitti360_db_crop_size,
+            db_resize=db_img_size,
+            db_jitter=0.0,
+            camnames=hparams.kitti360_camnames,
+            maptype=hparams.kitti360_maptype,
+            traindownsample=1,
+            num_workers=hparams.num_workers,
+            val_positive_dist_threshold=hparams.kitti360_val_positive_dist_threshold,
+        )
+
+        dataset_args = SimpleNamespace(
+            dataset_name="kitti360",
+            resize=query_img_size,
+            test_method="single_query",
+            num_workers=hparams.num_workers,
+            infer_batch_size=hparams.kitti360_infer_batch_size,
+            device="cpu",
+        )
+
+        dataset = KITTI360BaseDataset(
+            args=dataset_args,
+            dataset_name="kitti360",
+            split="test",
+        )
+
+        return dataset, dataset_args
+
+    if dataset_name == "nuscenes":
+        q_size = getattr(
+            hparams,
+            "nuscenes_query_img_size",
+            None,
+        ) or query_img_size
+
+        db_size = getattr(
+            hparams,
+            "nuscenes_db_img_size",
+            None,
+        ) or db_img_size
+
+        configure_nuscenes_options(
+            dataroot=hparams.nuscenes_path,
+            train_version=getattr(
+                hparams,
+                "nuscenes_train_version",
+                "v1.0-trainval",
+            ),
+            val_version=getattr(
+                hparams,
+                "nuscenes_val_version",
+                "v1.0-test",
+            ),
+            train_ratio=getattr(
+                hparams,
+                "nuscenes_train_ratio",
+                1.0,
+            ),
+            share_db=False,
+            q_resize=q_size,
+            q_jitter=0.0,
+            db_cropsize=getattr(
+                hparams,
+                "nuscenes_db_crop_size",
+                320,
+            ),
+            db_resize=db_size,
+            db_jitter=0.0,
+            camnames=getattr(
+                hparams,
+                "nuscenes_camnames",
+                "CAM_FRONT",
+            ),
+            maptype=getattr(
+                hparams,
+                "nuscenes_maptype",
+                "satellite",
+            ),
+            locations=getattr(
+                hparams,
+                "nuscenes_locations",
+                (
+                    "boston-seaport,"
+                    "singapore-hollandvillage,"
+                    "singapore-onenorth,"
+                    "singapore-queenstown"
+                ),
+            ),
+            aerial_scale=getattr(
+                hparams,
+                "nuscenes_aerial_scale",
+                1,
+            ),
+            aerial_zoom=getattr(
+                hparams,
+                "nuscenes_aerial_zoom",
+                20,
+            ),
+            aerial_size=getattr(
+                hparams,
+                "nuscenes_aerial_size",
+                320,
+            ),
+            use_keyframes_only=getattr(
+                hparams,
+                "nuscenes_use_keyframes_only",
+                True,
+            ),
+            traindownsample=1,
+            num_workers=hparams.num_workers,
+            val_positive_dist_threshold=getattr(
+                hparams,
+                "nuscenes_val_positive_dist_threshold",
+                25.0,
+            ),
+        )
+
+        dataset_args = SimpleNamespace(
+            dataset_name="nuscenes",
+            resize=q_size,
+            test_method="single_query",
+            num_workers=hparams.num_workers,
+            infer_batch_size=getattr(
+                hparams,
+                "nuscenes_infer_batch_size",
+                getattr(hparams, "kitti360_infer_batch_size", 32),
+            ),
+            device="cpu",
+        )
+
+        dataset = NuScenesBaseDataset(
+            args=dataset_args,
+            dataset_name="nuscenes",
+            split="test",
+        )
+
+        return dataset, dataset_args
+
+    raise ValueError(
+        f"Unsupported dataset_name={dataset_name!r}."
     )
-    dataset_args = SimpleNamespace(
-        resize=query_img_size,
-        test_method="single_query",
-        num_workers=hparams.num_workers,
-        infer_batch_size=hparams.kitti360_infer_batch_size,
-        device="cpu",
-    )
-    return KITTI360BaseDataset(args=dataset_args, dataset_name="kitti360", split="test"), dataset_args
 
 
 def parse_args() -> argparse.Namespace:
@@ -427,30 +684,92 @@ def parse_args() -> argparse.Namespace:
         default=4,
         help="Number of queries processed together during patch reranking.",)
 
+  
+    
+    
     parser.add_argument(
-        "--dataset_name",
-        type=str,
-        choices=["kitti360", "nuscenes"],
-        default="kitti360",
-        help="Dataset used for evaluation.",
-    )
+    "--dataset_name",
+    type=str,
+    choices=["kitti360", "nuscenes"],
+    default="kitti360",
+    help="Dataset used for evaluation.",
+)
 
-    parser.add_argument("--nuscenes_path", type=str, help="nuScenes root path.")
-    parser.add_argument("--nuscenes_train_version", type=str, default="v1.0-trainval")
-    parser.add_argument("--nuscenes_val_version", type=str, default="v1.0-test")
+    # ============================================================
+    # nuScenes evaluation args
+    # ============================================================
+    parser.add_argument(
+        "--nuscenes_path",
+        type=str,
+        help="nuScenes root path, e.g. /mnt/sda/ZhengyiXu/datasets/radar/nuscenes",
+    )
+    parser.add_argument(
+        "--nuscenes_train_version",
+        type=str,
+        default="v1.0-trainval",
+    )
+    parser.add_argument(
+        "--nuscenes_val_version",
+        type=str,
+        default="v1.0-test",
+    )
     parser.add_argument(
         "--nuscenes_locations",
         type=str,
-        default="boston-seaport,singapore-hollandvillage,singapore-onenorth,singapore-queenstown",
+        default=(
+            "boston-seaport,"
+            "singapore-hollandvillage,"
+            "singapore-onenorth,"
+            "singapore-queenstown"
+        ),
     )
-    parser.add_argument("--nuscenes_camnames", type=str, default="CAM_FRONT")
-    parser.add_argument("--nuscenes_maptype", type=str, default="satellite")
-    parser.add_argument("--nuscenes_aerial_scale", type=int, default=1)
-    parser.add_argument("--nuscenes_aerial_zoom", type=int, default=20)
-    parser.add_argument("--nuscenes_aerial_size", type=int, default=320)
-    parser.add_argument("--nuscenes_db_crop", type=int, default=320)
-    parser.add_argument("--nuscenes_val_pos_th", type=float, default=25.0)
-
+    parser.add_argument(
+        "--nuscenes_camnames",
+        type=str,
+        default="CAM_FRONT",
+    )
+    parser.add_argument(
+        "--nuscenes_maptype",
+        type=str,
+        default="satellite",
+    )
+    parser.add_argument(
+        "--nuscenes_aerial_scale",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
+        "--nuscenes_aerial_zoom",
+        type=int,
+        default=20,
+    )
+    parser.add_argument(
+        "--nuscenes_aerial_size",
+        type=int,
+        default=320,
+    )
+    parser.add_argument(
+        "--nuscenes_q_size",
+        type=int,
+        nargs=2,
+        metavar=("H", "W"),
+    )
+    parser.add_argument(
+        "--nuscenes_db_size",
+        type=int,
+        nargs=2,
+        metavar=("H", "W"),
+    )
+    parser.add_argument(
+        "--nuscenes_db_crop",
+        type=int,
+        default=320,
+    )
+    parser.add_argument(
+        "--nuscenes_val_pos_th",
+        type=float,
+        default=25.0,
+    )
 
 
 
@@ -687,5 +1006,7 @@ def main():
 
 
 
+#  python evaluate.py --checkpoint logs/view_adapter_boq_dinov2_vitb14/version_x/checkpoints/last.ckpt --dataset_name nuscenes --nuscenes_path /mnt/sda/ZhengyiXu/datasets/radar/nuscenes --nuscenes_train_version v1.0-trainval --nuscenes_val_version v1.0-test --nuscenes_camnames CAM_FRONT --nuscenes_maptype satellite --nuscenes_aerial_scale 1  --nuscenes_aerial_zoom 20 --nuscenes_aerial_size 320 --infer_batch_size 8
 if __name__ == "__main__":
     main()
+
